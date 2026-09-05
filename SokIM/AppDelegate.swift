@@ -462,7 +462,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 state = oldState
                 MarkedStrategy.commit(from: state, to: sender)
                 state.clear(composed: true, composing: true)
-                if hadComposition && !shift && !clientUsesRawMarkedText {
+                // 조합 속성 지원 여부와 관계없이 확정 뒤 Enter를 다시 보낸다.
+                if hadComposition && !shift {
                     DispatchQueue.main.async { [weak self] in
                         self?.postReturnKeyToFocusedApp(event.keyCode)
                     }
