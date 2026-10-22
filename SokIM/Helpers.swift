@@ -174,7 +174,7 @@ func isAppleKoreanInputSource() -> Bool {
 
 func isSokIMCurrentInputSource() -> Bool {
     let ids = currentInputSourceIDs()
-    notice("current input: \(ids.joined(separator: ", "))")
+    debug("current input: \(ids.joined(separator: ", "))")
     if ids.contains(where: { $0.contains("kiding.inputmethod.sok") }) {
         return true
     }

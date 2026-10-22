@@ -63,9 +63,15 @@ struct State: CustomStringConvertible {
             down = input
 
             // Command, Shift, Option, Control
-            let isCommandDown = modifier[.leftCommand] == .keyDown || modifier[.rightCommand] == .keyDown
+            // 한/A 키로 쓰는 오른쪽 Command·Option은 조합 키로 보지 않는다.
+            // 빠르게 치면 한/A 키를 떼기 전에 다음 글자가 눌리는데, 이걸 단축키로 보면 글자가 씹힌다.
+            let rightCommandIsRotate = Preferences.rotateShortcuts.contains(.rightCommand)
+            let rightOptionIsRotate = Preferences.rotateShortcuts.contains(.rightOption)
+            let isCommandDown = modifier[.leftCommand] == .keyDown
+                || (modifier[.rightCommand] == .keyDown && !rightCommandIsRotate)
             let isShiftDown = modifier[.leftShift] == .keyDown || modifier[.rightShift] == .keyDown
-            let isOptionDown = modifier[.leftOption] == .keyDown || modifier[.rightOption] == .keyDown
+            let isOptionDown = modifier[.leftOption] == .keyDown
+                || (modifier[.rightOption] == .keyDown && !rightOptionIsRotate)
             let isControlDown = modifier[.leftControl] == .keyDown || modifier[.rightControl] == .keyDown
 
             // Command/Shift/Control + Space: keyDown인 경우 한/A 전환 // TODO: #15

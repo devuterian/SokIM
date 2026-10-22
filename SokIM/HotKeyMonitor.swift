@@ -151,14 +151,38 @@ class HotKeyMonitor {
                 let isRightOption = (flags & NX_ALTERNATEMASK != 0) && (flags & NX_DEVICERALTKEYMASK != 0)
                 debug("isRightCommand: \(isRightCommand), isRightOption: \(isRightOption)")
 
-                // 한/A키로 오른쪽 커맨드, 오른쪽 옵션 사용시 단축키 무시
-                if Preferences.rotateShortcuts.contains(.rightCommand) && isRightCommand
-                    || Preferences.rotateShortcuts.contains(.rightOption) && isRightOption {
-                    debug("단축키 무시")
-                    return nil
-                } else {
+                let stripRightCommand = Preferences.rotateShortcuts.contains(.rightCommand) && isRightCommand
+                let stripRightOption = Preferences.rotateShortcuts.contains(.rightOption) && isRightOption
+
+                // 한/A 키(오른쪽 Command·Option)의 눌림 변화는 앱에 보내지 않는다.
+                if type == .flagsChanged {
+                    if stripRightCommand || stripRightOption {
+                        debug("한/A 키 modifier 무시")
+                        return nil
+                    }
                     return Unmanaged.passUnretained(event)
                 }
+
+                // 한/A 키를 떼기 전에 다음 글자가 눌린 경우: 버리지 않고 한/A 키 modifier만 빼서 글자로 보낸다.
+                // 단축키로는 쓰이지 않으므로 의도하지 않은 단축키 실행(#5)도 여전히 막힌다.
+                if stripRightCommand || stripRightOption {
+                    var stripped = event.flags.rawValue
+                    if stripRightCommand {
+                        stripped &= ~UInt64(NX_DEVICERCMDKEYMASK)
+                        if stripped & UInt64(NX_DEVICELCMDKEYMASK) == 0 {
+                            stripped &= ~UInt64(NX_COMMANDMASK)
+                        }
+                    }
+                    if stripRightOption {
+                        stripped &= ~UInt64(NX_DEVICERALTKEYMASK)
+                        if stripped & UInt64(NX_DEVICELALTKEYMASK) == 0 {
+                            stripped &= ~UInt64(NX_ALTERNATEMASK)
+                        }
+                    }
+                    event.flags = CGEventFlags(rawValue: stripped)
+                    debug("한/A 키 modifier 제거 후 통과")
+                }
+                return Unmanaged.passUnretained(event)
             },
             userInfo: nil
         )

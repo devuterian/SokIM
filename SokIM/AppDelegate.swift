@@ -130,7 +130,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     /** TIS 깜빡임으로 조합 중인 글자를 insertText하면 ㅎㅏㄴ으로 풀린다. 로컬 상태만 버린다. */
     private func dropComposingWithoutInsert() {
-        notice("drop composing without insert '\(state.composing)'")
+        debug("drop composing without insert '\(state.composing)'")
         sender = nil
         state.clear(composed: true, composing: true)
         inputMonitor.flush()
@@ -389,7 +389,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         let strategy = strategy(for: sender)
 
         let secure = IsSecureEventInputEnabled()
-        notice("handle secure=\(secure) engine=\(inputEngine.name) key=\(event.keyCode)")
+        debug("handle secure=\(secure) engine=\(inputEngine.name) key=\(event.keyCode)")
 
         // 암호 필드는 영문 엔진일 때만 OS에 맡긴다.
         // Secure Event Input이 새어 있으면 모든 필드가 암호로 보여 한글이 영문으로 빠진다.
@@ -415,9 +415,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         inputs.forEach { state.next($0) }
         if event.isARepeat, let down = state.down { state.next(down) }
 
-        notice("handle engine=\(state.engine.name) composed='\(state.composed)' composing='\(state.composing)' chars='\(event.characters ?? "")'")
+        debug("handle engine=\(state.engine.name) composed='\(state.composed)' composing='\(state.composing)' chars='\(event.characters ?? "")'")
 
-        notice("hangulStrategy=MarkedStrategy bundle=\(sender.bundleIdentifier() ?? "") raw=\(clientUsesRawMarkedText) attrs=\(markedTextAttributes(for: sender))")
+        debug("hangulStrategy=MarkedStrategy bundle=\(sender.bundleIdentifier() ?? "") raw=\(clientUsesRawMarkedText) attrs=\(markedTextAttributes(for: sender))")
 
         // modifier 없는 백스페이스 키인 경우
         if event.keyCode == kVK_Delete && event.modifierFlags.subtracting(.capsLock).isEmpty {
@@ -444,7 +444,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 _ = strategy.next(from: state, to: sender, with: oldState.composing)
                 state.clear(composed: true, composing: false)
             }
-            notice("handle latin despite hangul chars")
+            debug("handle latin despite hangul chars")
             return true
         }
 
@@ -478,7 +478,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             if tuple == nil {
                 MarkedStrategy.commit(from: state, to: sender)
                 state.clear(composed: true, composing: true)
-                notice("handle hangul commit passthrough key=\(event.keyCode)")
+                debug("handle hangul commit passthrough key=\(event.keyCode)")
                 return false
             }
 
@@ -489,7 +489,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             if !state.composed.isEmpty || !state.composing.isEmpty {
                 _ = MarkedStrategy.next(from: state, to: sender, with: oldState.composing)
                 state.clear(composed: true, composing: false)
-                notice("handle hangul inserted")
+                debug("handle hangul inserted")
                 return true
             }
             notice("handle hangul consumed")
