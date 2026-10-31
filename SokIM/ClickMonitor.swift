@@ -50,6 +50,7 @@ class ClickMonitor {
                 debug("\(type) \(event.flags)")
                 if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
                     appDelegate()?.restartMonitors(nil)
+                    return Unmanaged.passUnretained(event)
                 }
 
                 // 사용자가 마우스 클릭하는 시점에 조합 종료

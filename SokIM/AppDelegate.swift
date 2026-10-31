@@ -38,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var mouseStuckSamples = 0
     private var cursorWatch: Timer?
     private var recoverWork: DispatchWorkItem?
+    private var monitorRetryWork: DispatchWorkItem?
     private var postingReturnKey = false
     var inputEngine: Engine.Type = TwoSetEngine.self {
         didSet {
@@ -224,6 +225,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         debug()
 
         stopMonitors()
+        cursorWatch?.invalidate()
+        cursorWatch = nil
+
+        NSWorkspace.shared.notificationCenter.removeObserver(
+            self,
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
 
         // applicationDidFinishLaunching에서 추가한 observer 제거
         NotificationCenter.default.removeObserver(
@@ -353,19 +362,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
         statusBar.setStatus(state.engine.name)
         if errors.isEmpty {
+            monitorRetryWork?.cancel()
+            monitorRetryWork = nil
             statusBar.setError(nil)
         } else {
             statusBar.setError("⚠️ \(errors[0])")
             if retryOnError {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                // 재시작이 겹쳐도 재시도 체인은 하나만 유지한다.
+                monitorRetryWork?.cancel()
+                let work = DispatchWorkItem { [weak self] in
+                    self?.monitorRetryWork = nil
                     self?.startMonitors(retryOnError: true)
                 }
+                monitorRetryWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: work)
             }
         }
     }
 
     private func stopMonitors() {
         debug()
+
+        monitorRetryWork?.cancel()
+        monitorRetryWork = nil
 
         inputMonitor.stop()
         clickMonitor.stop()
@@ -604,12 +623,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
      T·/ 키 이름 없이, 잠김→이동 전환만으로 속을 한글에 붙인다.
      */
     private func startCursorWatch() {
-        lastMouseLocation = NSEvent.mouseLocation
-        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
-            self?.checkCursorForRawKoreanIME()
+        // 20Hz 타이머는 raw 게임이 앞에 있을 때만 돌린다. 평소 배터리를 아낀다.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(updateCursorWatch),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+        updateCursorWatch()
+    }
+
+    @objc private func updateCursorWatch() {
+        if looksLikeFrontmostRawGame() {
+            guard cursorWatch == nil else { return }
+            lastMouseLocation = NSEvent.mouseLocation
+            mouseStuckSamples = 0
+            let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+                self?.checkCursorForRawKoreanIME()
+            }
+            timer.tolerance = 0.02
+            RunLoop.main.add(timer, forMode: .common)
+            cursorWatch = timer
+        } else {
+            cursorWatch?.invalidate()
+            cursorWatch = nil
+            mouseStuckSamples = 0
         }
-        RunLoop.main.add(timer, forMode: .common)
-        cursorWatch = timer
     }
 
     private func checkCursorForRawKoreanIME() {

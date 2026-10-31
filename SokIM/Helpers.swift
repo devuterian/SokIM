@@ -6,10 +6,12 @@ import Carbon.HIToolbox
 
 // MARK: - Logger
 
-func debug(_ message: String = "",
+/** 디버그 모드가 꺼져 있으면 메시지 문자열을 만들지 않는다. 키 입력마다 불리므로 autoclosure로 받는다. */
+func debug(_ message: @autoclosure () -> String = "",
            fileID: String = #fileID,
            function: String = #function) {
     if Preferences.debug {
+        let message = message()
         Logger().debug("\(fileID, privacy: .public): \(function, privacy: .public) \(message, privacy: .public)")
     }
 }
