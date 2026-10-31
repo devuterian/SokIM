@@ -268,7 +268,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
                 let config = URLSessionConfiguration.ephemeral
                 config.timeoutIntervalForResource = 15
-                let url = URL(string: "https://api.github.com/repos/kiding/SokIM/releases/latest")!
+                let url = URL(string: "https://api.github.com/repos/devuterian/SokIM/releases/latest")!
 
                 if let data = try? await URLSession(configuration: config).data(from: url).0,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
