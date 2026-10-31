@@ -626,15 +626,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // 20Hz 타이머는 raw 게임이 앞에 있을 때만 돌린다. 평소 배터리를 아낀다.
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(updateCursorWatch),
+            selector: #selector(updateCursorWatch(_:)),
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
         updateCursorWatch()
     }
 
-    @objc private func updateCursorWatch() {
-        if looksLikeFrontmostRawGame() {
+    @objc private func updateCursorWatch(_ notification: Notification? = nil) {
+        // 알림 시점엔 frontmostApplication이 아직 이전 앱일 수 있어 알림에 담긴 앱을 우선 쓴다
+        let app = notification?.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+        if looksLikeFrontmostRawGame(app) {
             guard cursorWatch == nil else { return }
             lastMouseLocation = NSEvent.mouseLocation
             mouseStuckSamples = 0
@@ -857,8 +859,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         notice("AppleEnabledThirdPartyInputSources에 속 추가")
     }
 
-    private func looksLikeFrontmostRawGame() -> Bool {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return false }
+    private func looksLikeFrontmostRawGame(_ candidate: NSRunningApplication? = nil) -> Bool {
+        guard let app = candidate ?? NSWorkspace.shared.frontmostApplication else { return false }
         let bundle = app.bundleIdentifier ?? ""
         let name = (app.localizedName ?? "").lowercased()
         return bundle.isEmpty || bundle.contains("minecraft") || name.contains("java")
