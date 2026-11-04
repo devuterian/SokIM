@@ -90,6 +90,15 @@ struct Preferences {
         }
     }
 
+    private static var _suppressABC = Defaults.get(.suppressABC) ?? true
+    static var suppressABC: Bool {
+        get { _suppressABC }
+        set {
+            _suppressABC = newValue
+            Defaults.set(.suppressABC, newValue)
+        }
+    }
+
     private static var _debug = Defaults.get(.debug) ?? false
     static var debug: Bool {
         get { _debug }

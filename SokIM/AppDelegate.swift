@@ -319,14 +319,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         statusBar.checkUpdate(sender: nil)
     }
 
-    // 보안 입력 상태인 경우 모두 버리고 영문 소문자 입력으로 변경
+    // 맨 앞의 앱이 보안 입력 상태인 경우 모두 버리고 영문 소문자 입력으로 변경
     private func startCheckingSecureInput() {
         debug()
 
         Task {
             while true {
-                if IsSecureEventInputEnabled() {
-                    await MainActor.run {
+                await MainActor.run {
+                    if isSecureInputEnabledInFrontmostApp() {
                         clearExceptEngine(nil)
                         state = State(engine: state.engines.A)
 
@@ -337,6 +337,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 _ = try? await Task.sleep(for: .seconds(0.3))
             }
         }
+    }
+
+    /** 보안 입력을 활성화한 프로세스가 맨 앞의 앱인지 여부, 다른 앱이 보안 입력을 놓지 않은 경우는 제외 */
+    private func isSecureInputEnabledInFrontmostApp() -> Bool {
+        guard IsSecureEventInputEnabled() else {
+            return false
+        }
+
+        // PID를 알 수 없으면 기존처럼 보안 입력 상태로 취급
+        guard let pid = getSecureInputPID() else {
+            return true
+        }
+
+        let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        debug("secure input pid: \(pid), frontmost pid: \(String(describing: frontmost))")
+
+        return pid == frontmost
     }
 
     private func startMonitorsInitially() {
@@ -423,7 +440,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         debug("handle secure=\(IsSecureEventInputEnabled()) engine=\(inputEngine.name) key=\(event.keyCode)")
 
         // 별도 처리: 암호 필드에 포커스된 경우 OS가 대신 처리
-        if IsSecureEventInputEnabled() {
+        if isSecureInputEnabledInFrontmostApp() {
             state = State(engine: state.engines.A)
             return false
         }
@@ -445,6 +462,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // inputs 입력, 반복 입력인 경우 down 한번 더 입력
         inputs.forEach { state.next($0) }
         if event.isARepeat, let down = state.down { state.next(down) }
+
+        // 별도 처리: 다른 앱이 보안 입력을 놓지 않아 inputs를 받을 수 없는 경우 event로 입력
+        if inputs.isEmpty && IsSecureEventInputEnabled(), let tuple = state.engine.eventToTuple(event) {
+            debug("보안 입력 중 event로 입력: \(tuple)")
+            state.next(tuple)
+        }
 
         debug("handle engine=\(state.engine.name) composed='\(state.composed)' composing='\(state.composing)' chars='\(event.characters ?? "")'")
 
