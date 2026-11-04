@@ -23,15 +23,9 @@ class StatusBar {
     private let errorItem = NSMenuItem()
     private let noticeItem = NSMenuItem()
 
-    /** 한/A 전환키 */
+    /** 설정 창 */
 
-    private let capsLockItem = NSMenuItem()
-    private let rightCommandItem = NSMenuItem()
-    private let rightOptionItem = NSMenuItem()
-    private let commandSpaceItem = NSMenuItem()
-    private let shiftSpaceItem = NSMenuItem()
-    private let controlSpaceItem = NSMenuItem()
-    private let f18Item = NSMenuItem()
+    private var settingsPanel: NSPanel?
 
     init() {
         debug()
@@ -69,79 +63,13 @@ class StatusBar {
 
         menu.addItem(NSMenuItem.separator())
 
-        /** 한/A 전환키 */
+        /** 설정 */
 
-        let rotateShortcutItem = NSMenuItem()
-        rotateShortcutItem.title = "한/A 전환"
-        menu.addItem(rotateShortcutItem)
-
-        capsLockItem.title = "한/A (⇪)"
-        capsLockItem.state = Preferences.rotateShortcuts.contains(.capsLock) ? .on : .off
-        capsLockItem.target = self
-        capsLockItem.action = #selector(toggleCapsLock)
-        menu.addItem(capsLockItem)
-
-        rightCommandItem.title = "오른쪽 ⌘"
-        rightCommandItem.state = Preferences.rotateShortcuts.contains(.rightCommand) ? .on : .off
-        rightCommandItem.target = self
-        rightCommandItem.action = #selector(toggleRightCommand)
-        menu.addItem(rightCommandItem)
-
-        rightOptionItem.title = "오른쪽 ⌥"
-        rightOptionItem.state = Preferences.rotateShortcuts.contains(.rightOption) ? .on : .off
-        rightOptionItem.target = self
-        rightOptionItem.action = #selector(toggleRightOption)
-        menu.addItem(rightOptionItem)
-
-        commandSpaceItem.title = "⌘스페이스"
-        commandSpaceItem.state = Preferences.rotateShortcuts.contains(.commandSpace) ? .on : .off
-        commandSpaceItem.target = self
-        commandSpaceItem.action = #selector(toggleCommandSpace)
-        menu.addItem(commandSpaceItem)
-
-        shiftSpaceItem.title = "⇧스페이스"
-        shiftSpaceItem.state = Preferences.rotateShortcuts.contains(.shiftSpace) ? .on : .off
-        shiftSpaceItem.target = self
-        shiftSpaceItem.action = #selector(toggleShiftSpace)
-        menu.addItem(shiftSpaceItem)
-
-        controlSpaceItem.title = "⌃스페이스"
-        controlSpaceItem.state = Preferences.rotateShortcuts.contains(.controlSpace) ? .on : .off
-        controlSpaceItem.target = self
-        controlSpaceItem.action = #selector(toggleControlSpace)
-        menu.addItem(controlSpaceItem)
-
-        let remoteRightOptionItem = NSMenuItem()
-        remoteRightOptionItem.title = "원격 제어 오른쪽 ⌥"
-        remoteRightOptionItem.toolTip = "StarDesk 같은 원격 제어 앱에서 Windows 오른쪽 Alt(한/영)로 한/A를 전환해요."
-        remoteRightOptionItem.state = Preferences.remoteRightOption ? .on : .off
-        remoteRightOptionItem.target = self
-        remoteRightOptionItem.action = #selector(toggleRemoteRightOption)
-        menu.addItem(remoteRightOptionItem)
-
-        f18Item.title = "F18"
-        f18Item.state = Preferences.rotateShortcuts.contains(.f18) ? .on : .off
-        f18Item.target = self
-        f18Item.action = #selector(toggleF18)
-        menu.addItem(f18Item)
-
-        menu.addItem(NSMenuItem.separator())
-
-        /** 기타 설정 */
-
-        let graveItem = NSMenuItem()
-        graveItem.title = "₩ 대신 ` 입력"
-        graveItem.state = Preferences.graveOverWon ? .on : .off
-        graveItem.target = self
-        graveItem.action = #selector(toggleGraveOverWon)
-        menu.addItem(graveItem)
-
-        let debugItem = NSMenuItem()
-        debugItem.title = "디버그 모드"
-        debugItem.state = Preferences.debug ? .on : .off
-        debugItem.target = self
-        debugItem.action = #selector(toggleDebug)
-        menu.addItem(debugItem)
+        let settingsItem = NSMenuItem()
+        settingsItem.title = "설정..."
+        settingsItem.target = self
+        settingsItem.action = #selector(openSettings)
+        menu.addItem(settingsItem)
     }
 
     /** 한/A 상태 */
@@ -200,140 +128,44 @@ class StatusBar {
         }
     }
 
-    /** 한/A 전환키 */
+    /** 설정 창 */
 
-    @objc func toggleCapsLock(sender: NSMenuItem) {
+    @objc func openSettings(sender: NSMenuItem) {
         debug()
 
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.capsLock)
-            capsLockItem.state = .on
-        } else {
-            rotateShortcuts.remove(.capsLock)
-            capsLockItem.state = .off
+        // 활성화 없이도 입력을 받는 패널 사용
+        let panel = settingsPanel ?? NSPanel(
+            contentRect: .zero,
+            styleMask: [.titled, .closable, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        if settingsPanel == nil {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(settingsWillClose),
+                name: NSWindow.willCloseNotification,
+                object: panel
+            )
         }
-        Preferences.rotateShortcuts = rotateShortcuts
+        panel.toolbarStyle = .preference
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.contentViewController = makeSettingsViewController()
+        panel.center()
+        settingsPanel = panel
 
-        statusItem.button?.performClick(nil)
+        // 비활성 창은 스위치 등이 회색으로 그려지므로 설정 창을 여는 동안만 활성화 가능하게 변경
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
     }
 
-    @objc func toggleRightCommand(sender: NSMenuItem) {
+    @objc private func settingsWillClose(_ notification: Notification) {
         debug()
 
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.rightCommand)
-            rightCommandItem.state = .on
-        } else {
-            rotateShortcuts.remove(.rightCommand)
-            rightCommandItem.state = .off
-        }
-        Preferences.rotateShortcuts = rotateShortcuts
-
-        statusItem.button?.performClick(nil)
-    }
-
-    @objc func toggleRightOption(sender: NSMenuItem) {
-        debug()
-
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.rightOption)
-            rightOptionItem.state = .on
-        } else {
-            rotateShortcuts.remove(.rightOption)
-            rightOptionItem.state = .off
-        }
-        Preferences.rotateShortcuts = rotateShortcuts
-
-        statusItem.button?.performClick(nil)
-    }
-
-    @objc func toggleCommandSpace(sender: NSMenuItem) {
-        debug()
-
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.commandSpace)
-            commandSpaceItem.state = .on
-        } else {
-            rotateShortcuts.remove(.commandSpace)
-            commandSpaceItem.state = .off
-        }
-        Preferences.rotateShortcuts = rotateShortcuts
-
-        statusItem.button?.performClick(nil)
-    }
-
-    @objc func toggleShiftSpace(sender: NSMenuItem) {
-        debug()
-
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.shiftSpace)
-            shiftSpaceItem.state = .on
-        } else {
-            rotateShortcuts.remove(.shiftSpace)
-            shiftSpaceItem.state = .off
-        }
-        Preferences.rotateShortcuts = rotateShortcuts
-
-        statusItem.button?.performClick(nil)
-   }
-
-    @objc func toggleControlSpace(sender: NSMenuItem) {
-        debug()
-
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.controlSpace)
-            controlSpaceItem.state = .on
-        } else {
-            rotateShortcuts.remove(.controlSpace)
-            controlSpaceItem.state = .off
-        }
-        Preferences.rotateShortcuts = rotateShortcuts
-
-        statusItem.button?.performClick(nil)
-   }
-
-    @objc func toggleRemoteRightOption(sender: NSMenuItem) {
-        debug()
-
-        Preferences.remoteRightOption = sender.state == .on ? false : true
-        sender.state = Preferences.remoteRightOption ? .on : .off
-    }
-
-    @objc func toggleF18(sender: NSMenuItem) {
-        debug()
-
-        var rotateShortcuts = Preferences.rotateShortcuts
-        if sender.state == .off {
-            rotateShortcuts.insert(.f18)
-            f18Item.state = .on
-        } else {
-            rotateShortcuts.remove(.f18)
-            f18Item.state = .off
-        }
-        Preferences.rotateShortcuts = rotateShortcuts
-
-        statusItem.button?.performClick(nil)
-    }
-
-    /** 기타 설정 */
-
-    @objc func toggleGraveOverWon(sender: NSMenuItem) {
-        debug()
-
-        Preferences.graveOverWon = sender.state == .on ? false : true
-        sender.state = Preferences.graveOverWon ? .on : .off
-    }
-
-    @objc func toggleDebug(sender: NSMenuItem) {
-        debug()
-
-        Preferences.debug = sender.state == .on ? false : true
-        sender.state = Preferences.debug ? .on : .off
+        // 닫힌 창의 권한 확인 타이머가 계속 돌지 않도록 화면을 내림
+        settingsPanel?.contentViewController = nil
+        NSApp.setActivationPolicy(.prohibited)
     }
 }
