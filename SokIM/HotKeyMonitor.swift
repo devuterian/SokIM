@@ -231,7 +231,8 @@ class HotKeyMonitor {
         }
         self.source = source
 
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
+        // 메뉴가 열린 동안(eventTracking)에도 탭이 돌아야 키 입력이 멈추지 않음
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
 
         if !CGEvent.tapIsEnabled(tap: tap) {

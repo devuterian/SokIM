@@ -40,6 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     private var recoverWork: DispatchWorkItem?
     private var monitorRetryWork: DispatchWorkItem?
     private var postingReturnKey = false
+    private var wasSecureInput = false
     var inputEngine: Engine.Type = TwoSetEngine.self {
         didSet {
             if oldValue.name != inputEngine.name {
@@ -319,22 +320,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         statusBar.checkUpdate(sender: nil)
     }
 
-    // 맨 앞의 앱이 보안 입력 상태인 경우 모두 버리고 영문 소문자 입력으로 변경
+    // 맨 앞의 앱이 보안 입력 상태가 되는 순간 조합을 확정하고 영문 소문자 입력으로 변경
+    // 보안 입력이 이어지는 동안의 키 입력은 handle()이 영문으로 넘긴다
     private func startCheckingSecureInput() {
         debug()
 
         Task {
             while true {
                 await MainActor.run {
-                    if isSecureInputEnabledInFrontmostApp() {
+                    let secure = isSecureInputEnabledInFrontmostApp()
+                    if secure && !wasSecureInput {
+                        commit()
                         clearExceptEngine(nil)
                         state = State(engine: state.engines.A)
 
                         debug("변경 완료")
                     }
+                    wasSecureInput = secure
                 }
 
-                _ = try? await Task.sleep(for: .seconds(0.3))
+                _ = try? await Task.sleep(for: .seconds(0.3), tolerance: .seconds(0.2))
             }
         }
     }
@@ -448,7 +453,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         // 별도 처리: 한/A 전환키 중 그 외 키 입력 시 조합 종료 후 한/A 전환, OS 처리 무시
         if Preferences.rotateKeyCodes.contains(Int(event.keyCode)) {
             commit()
-            state.rotate()
+            state.rotateFromKeyCode()
             return true
         }
 

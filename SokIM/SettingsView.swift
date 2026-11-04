@@ -38,13 +38,13 @@ private func settingsTab<Content: View>(_ label: String, _ symbol: String, _ vie
 // MARK: - 일반
 
 private struct GeneralSettingsView: View {
-    @State private var rotateKeys = Preferences.rotateKeys
-    @State private var graveOverWon = Preferences.graveOverWon
-    @State private var suppressABC = Preferences.suppressABC
-    @State private var remoteRightOption = Preferences.remoteRightOption
-    @State private var debugMode = Preferences.debug
-    @State private var isInputMonitoringGranted = false
-    @State private var isAccessibilityGranted = false
+    @SwiftUI.State private var rotateKeys = Preferences.rotateKeys
+    @SwiftUI.State private var graveOverWon = Preferences.graveOverWon
+    @SwiftUI.State private var suppressABC = Preferences.suppressABC
+    @SwiftUI.State private var remoteRightOption = Preferences.remoteRightOption
+    @SwiftUI.State private var debugMode = Preferences.debug
+    @SwiftUI.State private var isInputMonitoringGranted = false
+    @SwiftUI.State private var isAccessibilityGranted = false
 
     var body: some View {
         Form {
@@ -152,11 +152,11 @@ private struct RotateKeyRecorder: View {
     /** 바꿀 키, 없으면 추가 */
     let key: RotateKey?
 
-    @State private var isRecording = false
-    @State private var message: String?
-    @State private var monitor: Any?
+    @SwiftUI.State private var isRecording = false
+    @SwiftUI.State private var message: String?
+    @SwiftUI.State private var monitor: Any?
     /** 혼자 눌렀다 떼면 지정할 보조 키 */
-    @State private var pendingModifier: Int?
+    @SwiftUI.State private var pendingModifier: Int?
 
     var body: some View {
         Button {
@@ -264,7 +264,7 @@ private struct RotateKeyMenu: View {
     @Binding var rotateKeys: [RotateKey]
     /** 바꿀 키, 없으면 추가 */
     let key: RotateKey?
-    @State private var anchor = RotateKeyMenuAnchor()
+    @SwiftUI.State private var anchor = RotateKeyMenuAnchor()
 
     var body: some View {
         Button {

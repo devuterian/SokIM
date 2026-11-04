@@ -140,7 +140,6 @@ struct State: CustomStringConvertible {
         set {
             if appDelegate()?.inputEngine.name != newValue.name {
                 appDelegate()?.inputEngine = newValue
-                appDelegate()?.statusBar.setEngine(newValue)
             }
         }
     }
@@ -157,6 +156,14 @@ struct State: CustomStringConvertible {
         engine = engine == engines.한 ? engines.A : engines.한
         skipNextRotate = true
         appDelegate()?.statusBar.setEngine(engine)
+    }
+
+    /** handle()로 들어온 전환키(F18 등)로 즉시 전환, 이전 단축키의 건너뛰기 표시는 버린다 */
+    mutating func rotateFromKeyCode() {
+        debug()
+
+        skipNextRotate = false
+        engine = engine == engines.한 ? engines.A : engines.한
     }
 
     /** 사용 가능한 다음 engine으로 변경 */
