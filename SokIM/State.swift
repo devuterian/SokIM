@@ -133,11 +133,14 @@ struct State: CustomStringConvertible {
 
     // MARK: - KeyboardEngine
 
+    let engines = (한: TwoSetEngine.self, A: QwertyEngine.self) // TODO: #24
+
     var engine: Engine.Type {
         get { appDelegate()?.inputEngine ?? TwoSetEngine.self }
         set {
             if appDelegate()?.inputEngine.name != newValue.name {
                 appDelegate()?.inputEngine = newValue
+                appDelegate()?.statusBar.setEngine(newValue)
             }
         }
     }
@@ -146,7 +149,6 @@ struct State: CustomStringConvertible {
         debug("\(engine)")
         self.engine = engine
     }
-    let engines = (한: TwoSetEngine.self, A: QwertyEngine.self) // TODO: #24
 
     /** HID 단축키에서 즉시 전환하고, 이어지는 handle()의 rotate()는 건너뛴다 */
     mutating func rotateFromShortcut() {
@@ -169,8 +171,6 @@ struct State: CustomStringConvertible {
         }
 
         engine = engine == engines.한 ? engines.A : engines.한
-
-        appDelegate()?.statusBar.setEngine(engine)
     }
 
     // MARK: - CharTuple

@@ -1,4 +1,5 @@
 import QuartzCore
+import Carbon
 
 enum ClickMonitorError: Error, CustomStringConvertible {
     case axProcessNotTrusted
@@ -83,7 +84,7 @@ class ClickMonitor {
         }
         self.source = source
 
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
 
         if !CGEvent.tapIsEnabled(tap: tap) {

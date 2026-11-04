@@ -170,6 +170,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             setKeyboardCapsLock(enabled: false)
         }
         startCheckingUpdate()
+        startCheckingSecureInput()
         startMonitorsInitially()
         startCursorWatch()
 
@@ -194,14 +195,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(claimKoreanIMEIfNeeded),
-            name: NSTextInputContext.keyboardSelectionDidChangeNotification,
-            object: nil
-        )
-
-        // 입력기가 변경되는 시점에 보안 입력 상태인 경우 모두 버리고 영문 소문자 입력으로 변경
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(abcOnSecureInput),
             name: NSTextInputContext.keyboardSelectionDidChangeNotification,
             object: nil
         )
@@ -326,6 +319,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         statusBar.checkUpdate(sender: nil)
     }
 
+    // 보안 입력 상태인 경우 모두 버리고 영문 소문자 입력으로 변경
+    private func startCheckingSecureInput() {
+        debug()
+
+        Task {
+            while true {
+                if IsSecureEventInputEnabled() {
+                    await MainActor.run {
+                        clearExceptEngine(nil)
+                        state = State(engine: state.engines.A)
+
+                        debug("변경 완료")
+                    }
+                }
+
+                _ = try? await Task.sleep(for: .seconds(0.3))
+            }
+        }
+    }
+
     private func startMonitorsInitially() {
         debug()
         startMonitors(retryOnError: true)
@@ -407,12 +420,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
         let strategy = strategy(for: sender)
 
-        let secure = IsSecureEventInputEnabled()
-        debug("handle secure=\(secure) engine=\(inputEngine.name) key=\(event.keyCode)")
+        debug("handle secure=\(IsSecureEventInputEnabled()) engine=\(inputEngine.name) key=\(event.keyCode)")
 
-        // 암호 필드는 영문 엔진일 때만 OS에 맡긴다.
-        // Secure Event Input이 새어 있으면 모든 필드가 암호로 보여 한글이 영문으로 빠진다.
-        if secure && inputEngine.name == "A" {
+        // 별도 처리: 암호 필드에 포커스된 경우 OS가 대신 처리
+        if IsSecureEventInputEnabled() {
+            state = State(engine: state.engines.A)
             return false
         }
 
@@ -935,12 +947,5 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
             debug("ABC 입력기 제한 성공")
         }
-    }
-
-    @objc private func abcOnSecureInput(_ aNotification: Notification) {
-        debug("\(String(describing: aNotification))")
-
-        guard IsSecureEventInputEnabled() else { return }
-        notice("abcOnSecureInput: secure 입력이지만 한/A 엔진은 유지")
     }
 }
