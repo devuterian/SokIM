@@ -110,6 +110,14 @@ class StatusBar {
         controlSpaceItem.action = #selector(toggleControlSpace)
         menu.addItem(controlSpaceItem)
 
+        let remoteRightOptionItem = NSMenuItem()
+        remoteRightOptionItem.title = "원격 제어 오른쪽 ⌥"
+        remoteRightOptionItem.toolTip = "StarDesk 같은 원격 제어 앱에서 Windows 오른쪽 Alt(한/영)로 한/A를 전환해요."
+        remoteRightOptionItem.state = Preferences.remoteRightOption ? .on : .off
+        remoteRightOptionItem.target = self
+        remoteRightOptionItem.action = #selector(toggleRemoteRightOption)
+        menu.addItem(remoteRightOptionItem)
+
         menu.addItem(NSMenuItem.separator())
 
         /** 기타 설정 */
@@ -289,6 +297,13 @@ class StatusBar {
 
         statusItem.button?.performClick(nil)
    }
+
+    @objc func toggleRemoteRightOption(sender: NSMenuItem) {
+        debug()
+
+        Preferences.remoteRightOption = sender.state == .on ? false : true
+        sender.state = Preferences.remoteRightOption ? .on : .off
+    }
 
     /** 기타 설정 */
 

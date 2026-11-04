@@ -6,6 +6,9 @@ private var capsLockTapDown = false
 private var capsLockHIDHandledAt: CFTimeInterval?
 private var clearingStuckCapsLock = false
 
+/** 원격 제어 앱이 넣은 오른쪽 ⌘·⌥의 눌림 상태. down에서 한 번만 전환한다. */
+private var remoteRotateKeyDown: Set<Int64> = []
+
 func resetCapsLockTapDown() {
     capsLockTapDown = false
 }
@@ -151,8 +154,33 @@ class HotKeyMonitor {
                 let isRightOption = (flags & NX_ALTERNATEMASK != 0) && (flags & NX_DEVICERALTKEYMASK != 0)
                 debug("isRightCommand: \(isRightCommand), isRightOption: \(isRightOption)")
 
+                // 원격 제어 앱(StarDesk 등)은 키를 CGEventPost로 넣어서 HID 입력 모니터에 안 잡힌다.
+                // 하드웨어 키는 sourcePID가 0이고, 원격 앱이 넣은 키는 그 앱의 pid가 실린다.
+                let sourcePID = event.getIntegerValueField(.eventSourceUnixProcessID)
+                let isRemote = sourcePID != 0 && sourcePID != Int64(getpid())
+                let remoteRightOptionIsRotate = isRemote
+                    && (Preferences.remoteRightOption || Preferences.rotateShortcuts.contains(.rightOption))
+                let remoteRightCommandIsRotate = isRemote && Preferences.rotateShortcuts.contains(.rightCommand)
+
+                // 원격 오른쪽 ⌥(Windows 오른쪽 Alt)·⌘: HID 대신 여기서 눌릴 때 한 번 한/A 전환
+                if type == .flagsChanged
+                    && ((keycode == Int64(kVK_RightOption) && remoteRightOptionIsRotate)
+                        || (keycode == Int64(kVK_RightCommand) && remoteRightCommandIsRotate)) {
+                    let isDown = keycode == Int64(kVK_RightOption) ? isRightOption : isRightCommand
+                    if isDown && !remoteRotateKeyDown.contains(keycode) {
+                        remoteRotateKeyDown.insert(keycode)
+                        if isSokIMCurrentInputSource() {
+                            notice("원격 키 \(keycode) down → 한/A (pid \(sourcePID))")
+                            appDelegate()?.rotateFromShortcut()
+                        }
+                    } else if !isDown {
+                        remoteRotateKeyDown.remove(keycode)
+                    }
+                }
+
                 let stripRightCommand = Preferences.rotateShortcuts.contains(.rightCommand) && isRightCommand
-                let stripRightOption = Preferences.rotateShortcuts.contains(.rightOption) && isRightOption
+                let stripRightOption = (Preferences.rotateShortcuts.contains(.rightOption) || remoteRightOptionIsRotate)
+                    && isRightOption
 
                 // 한/A 키(오른쪽 Command·Option)의 눌림 변화는 앱에 보내지 않는다.
                 if type == .flagsChanged {

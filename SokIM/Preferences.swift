@@ -18,6 +18,7 @@ private struct Defaults {
         case rotateShortcuts = "RotateShortcuts"
         case graveOverWon = "GraveOverWon"
         case suppressABC = "SuppressABC"
+        case remoteRightOption = "RemoteRightOption"
         case debug = "Debug"
     }
 
@@ -65,6 +66,16 @@ struct Preferences {
             _rotateShortcuts = newValue
             Defaults.set(.rotateShortcuts, newValue)
             appDelegate()?.restartMonitors(nil)
+        }
+    }
+
+    /** 원격 제어 앱(StarDesk 등)이 보낸 오른쪽 ⌥(Windows 오른쪽 Alt)로 한/A 전환 */
+    private static var _remoteRightOption = Defaults.get(.remoteRightOption) ?? true
+    static var remoteRightOption: Bool {
+        get { _remoteRightOption }
+        set {
+            _remoteRightOption = newValue
+            Defaults.set(.remoteRightOption, newValue)
         }
     }
 
