@@ -426,15 +426,56 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         hotKeyMonitor.stop()
     }
 
+    /**
+     다른 앱이 보안 입력을 놓지 않은 동안에는 글자 키가 event tap에 안 들어와서, 한/A 키(오른쪽 ⌘·⌥)를 떼기 전에 친 글자가
+     ⌘+글자 단축키로 앱에 간다. 이때 한/A 키 modifier만 빼고 글자로 처리한다 (HotKeyMonitor의 modifier 제거와 같은 역할).
+     */
+    private func stripRotateModifiersWhileHIDBlocked(_ event: NSEvent) -> NSEvent {
+        guard event.type == .keyDown, IsSecureEventInputEnabled() else {
+            return event
+        }
+
+        let raw = event.modifierFlags.rawValue
+        var flags = event.modifierFlags
+        if Preferences.rotateShortcuts.contains(.rightCommand)
+            && raw & UInt(NX_DEVICERCMDKEYMASK) != 0 && raw & UInt(NX_DEVICELCMDKEYMASK) == 0 {
+            flags.remove(.command)
+        }
+        if Preferences.rotateShortcuts.contains(.rightOption)
+            && raw & UInt(NX_DEVICERALTKEYMASK) != 0 && raw & UInt(NX_DEVICELALTKEYMASK) == 0 {
+            flags.remove(.option)
+        }
+        guard flags != event.modifierFlags else {
+            return event
+        }
+
+        let chars = event.charactersIgnoringModifiers ?? ""
+        let stripped = NSEvent.keyEvent(
+            with: .keyDown,
+            location: event.locationInWindow,
+            modifierFlags: flags,
+            timestamp: event.timestamp,
+            windowNumber: event.windowNumber,
+            context: nil,
+            characters: chars,
+            charactersIgnoringModifiers: chars,
+            isARepeat: event.isARepeat,
+            keyCode: event.keyCode
+        )
+        debug("보안 입력 중 한/A 키 modifier 제거: \(event.keyCode)")
+        return stripped ?? event
+    }
+
     override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
         debug("\(String(describing: event)) \(String(describing: sender))")
 
         // 처리할 event 또는 sender가 없음, OS가 대신 처리
-        guard let event = event,
+        guard let rawEvent = event,
               let sender = sender as? IMKTextInput
         else {
             return false
         }
+        let event = stripRotateModifiersWhileHIDBlocked(rawEvent)
         self.sender = sender
         rememberClient(sender)
         if needsMarkedTextPrime && clientUsesRawMarkedText {

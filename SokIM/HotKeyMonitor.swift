@@ -158,9 +158,14 @@ class HotKeyMonitor {
                 // 하드웨어 키는 sourcePID가 0이고, 원격 앱이 넣은 키는 그 앱의 pid가 실린다.
                 let sourcePID = event.getIntegerValueField(.eventSourceUnixProcessID)
                 let isRemote = sourcePID != 0 && sourcePID != Int64(getpid())
-                let remoteRightOptionIsRotate = isRemote
-                    && (Preferences.remoteRightOption || Preferences.rotateShortcuts.contains(.rightOption))
-                let remoteRightCommandIsRotate = isRemote && Preferences.rotateShortcuts.contains(.rightCommand)
+                // 다른 앱이 보안 입력을 놓지 않으면 HID 입력 모니터가 막혀서 맥 키보드의 오른쪽 ⌘·⌥도 여기서 전환한다.
+                // 이 탭에는 보안 입력 중에도 flagsChanged가 들어온다 (macOS 27.2에서 확인).
+                let isHIDBlocked = IsSecureEventInputEnabled()
+                let remoteRightOptionIsRotate = (isRemote
+                    && (Preferences.remoteRightOption || Preferences.rotateShortcuts.contains(.rightOption)))
+                    || (isHIDBlocked && Preferences.rotateShortcuts.contains(.rightOption))
+                let remoteRightCommandIsRotate = (isRemote || isHIDBlocked)
+                    && Preferences.rotateShortcuts.contains(.rightCommand)
 
                 // 원격 오른쪽 ⌥(Windows 오른쪽 Alt)·⌘: HID 대신 여기서 눌릴 때 한 번 한/A 전환
                 if type == .flagsChanged
@@ -170,7 +175,7 @@ class HotKeyMonitor {
                     if isDown && !remoteRotateKeyDown.contains(keycode) {
                         remoteRotateKeyDown.insert(keycode)
                         if isSokIMCurrentInputSource() {
-                            notice("원격 키 \(keycode) down → 한/A (pid \(sourcePID))")
+                            notice("탭 키 \(keycode) down → 한/A (pid \(sourcePID), 보안 입력 \(isHIDBlocked))")
                             appDelegate()?.rotateFromShortcut()
                         }
                     } else if !isDown {
